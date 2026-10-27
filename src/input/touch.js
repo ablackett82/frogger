@@ -3,9 +3,10 @@
 //   pad   - a fixed d-pad in the bottom corner; hold a direction to keep hopping.
 //           One half of the screen moves, the other half is CURL.
 //   stick - the same, but its centre is wherever the thumb lands.
-//   swipe - swipe a direction for one hop; a plain tap hops forward. Keep the
-//           finger down and swipe again for the next hop. Works anywhere but
-//           the CURL button, so it suits a phone held in one hand.
+//   swipe - swipe a direction for one hop, however long the swipe; a plain tap
+//           hops forward. Keep the finger down and turn to hop another way;
+//           lift it to hop the same way again. Works anywhere but the CURL
+//           button, so it suits a phone held in one hand.
 //
 // Visibility: 'auto' shows the overlay on the first touch and hides it as soon
 // as a keyboard or gamepad is used; 'on' / 'off' force it.
@@ -121,8 +122,9 @@ export class Touch {
     if (p.kind === 'swipe') {
       const dx = x - p.sx, dy = y - p.sy;
       if (Math.hypot(dx, dy) >= SWIPE) {
-        this.pulses.push(Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up'));
-        p.sx = x; p.sy = y; p.fired = true;
+        const dir = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up');
+        if (dir !== p.dir) this.pulses.push(dir); // a long swipe is still one hop
+        p.sx = x; p.sy = y; p.fired = true; p.dir = dir;
       }
       return;
     }
