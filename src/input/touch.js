@@ -1,11 +1,11 @@
 // Touch controls for iPad. Every finger is tracked on its own (Pointer Events).
-// One half of the screen moves the hedgehog, the other half is the CURL button.
-//
 // Three ways to move, chosen under the cog:
 //   pad   - a fixed d-pad in the bottom corner; hold a direction to keep hopping.
+//           One half of the screen moves, the other half is CURL.
 //   stick - the same, but its centre is wherever the thumb lands.
 //   swipe - swipe a direction for one hop; a plain tap hops forward. Keep the
-//           finger down and swipe again for the next hop.
+//           finger down and swipe again for the next hop. Works anywhere but
+//           the CURL button, so it suits a phone held in one hand.
 //
 // Visibility: 'auto' shows the overlay on the first touch and hides it as soon
 // as a keyboard or gamepad is used; 'on' / 'off' force it.
@@ -100,9 +100,12 @@ export class Touch {
 
   down(id, x, y) {
     const g = this.geom;
-    const moveSide = this.settings.swap ? x > g.mid : x < g.mid;
     const layout = this.settings.layout;
-    if (!moveSide) this.pointers.set(id, { kind: 'curl' });
+    // swiping works anywhere but the CURL button; the pads split the screen in half
+    const curl = layout === 'swipe'
+      ? Math.hypot(x - g.curlX, y - g.curlY) <= g.curlR * 1.4
+      : (this.settings.swap ? x < g.mid : x > g.mid);
+    if (curl) this.pointers.set(id, { kind: 'curl' });
     else if (layout === 'swipe') this.pointers.set(id, { kind: 'swipe', sx: x, sy: y, fired: false });
     else {
       const fixed = layout === 'pad';

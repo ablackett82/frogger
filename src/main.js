@@ -92,7 +92,7 @@ function main() {
     const stage = document.getElementById('stage');
     const vw = stage.clientWidth, vh = stage.clientHeight;
     const s = Math.min(vw / SCREEN_W, vh / SCREEN_H);
-    const scale = s >= 1 ? Math.floor(s) : s;
+    const scale = s >= 2 ? Math.floor(s) : s; // whole pixels when big enough; a phone fills the width instead
     canvas.style.width = `${SCREEN_W * scale}px`;
     canvas.style.height = `${SCREEN_H * scale}px`;
   }

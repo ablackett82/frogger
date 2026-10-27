@@ -34,9 +34,9 @@ All original: the rules, pixel art (drawn in `src/render/art.js` and
 
 - Keyboard: arrows / WASD hop, Space (Z, X, Shift) curls up; P pause, M mute,
   F fullscreen, Esc back to the title.
-- Touch: left half moves, right half is CURL. Under the cog: swipe to hop (a
-  tap hops forward — the default), or a fixed d-pad, or a floating stick; size,
-  opacity, and swap sides. The cog also pauses, with Quit and Skip level.
+- Touch: swipe anywhere to hop (a tap hops forward), hold the CURL button to
+  curl up. Under the cog: a fixed d-pad or a floating stick instead (left half
+  moves, right half is CURL); size, opacity, and swap sides. The cog also pauses, with Quit and Skip level.
 - Gamepad: d-pad / stick hop, any face button curls up.
 
 ## Cheats
