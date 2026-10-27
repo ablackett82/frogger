@@ -1,0 +1,13 @@
+{
+  "name": "hedgehog-crossing",
+  "version": "0.1.0",
+  "description": "A hedgehog crosses roads, a railway and a brook to fetch supper",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node tools/serve.js",
+    "test": "node --test test/*.test.js",
+    "icons": "node tools/icons.mjs"
+  },
+  "license": "UNLICENSED"
+}
