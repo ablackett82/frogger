@@ -1,59 +1,89 @@
 // The pixel art, as strings: one character per pixel, '.' is see-through.
-// Plain data so tools/icons.mjs can use it in node as well.
+// Plain data so tools/icons.mjs can use it in node as well. The frog faces up;
+// sprites.js rotates it for the other ways.
 
-// Prickles, seen from above, nose up. Feet are added per frame in sprites.js.
-export const HOG = {
-  pal: { n: '#1a1010', e: '#000000', f: '#e3c08e', k: '#4a2f17', b: '#7d5230', l: '#c9a27a', p: '#b07a5a' },
+export const FROG = {
+  pal: { G: '#3cc23c', D: '#16631a', L: '#86ea5a', E: '#0c1a0b', W: '#eafff0', R: '#e03c3c' },
   rows: [
-    '................',
-    '.......nn.......',
-    '......ffff......',
-    '.....effffe.....',
-    '.....ffffff.....',
-    '....lkblbklb....',
-    '...lbkbkbkbkl...',
-    '..lkbkblbkbkbl..',
-    '..bkbkbkbkbkbk..',
-    '.lkbklbkbkblkbl.',
-    '.bkbkbkbkbkbkbk.',
-    '.kbkblbkbklbkbk.',
-    '..kbkbkbkbkbkb..',
-    '..lkbkbklbkbkl..',
-    '...kbkbkbkbkk...',
-    '....kk.kk.kk....',
-  ],
-  feet: [[[2, 6], [13, 6], [1, 12], [14, 12]], [[1, 7], [14, 7], [1, 13], [14, 13]]],
-};
-
-// the little one in the corner, for lives
-export const HOG_MINI = {
-  pal: HOG.pal,
-  rows: [
-    '..lklk..',
-    '.kbkbkb.',
-    'lbkbkbff',
-    'kbkbkbfn',
-    '.kbkbff.',
-    '..p..p..',
+    '...D........D...',
+    '...DD......DD...',
+    '....DD....DD....',
+    '....DWWGGWWD....',
+    '...DGWEGGEWGD...',
+    '..DGGGGGGGGGGD..',
+    '.DGGLGGGGGGLGGD.',
+    '.DGGGGGGGGGGGGD.',
+    '..DGGGGGGGGGGD..',
+    '...GGGGGGGGGG...',
+    '..DGGGGGGGGGGD..',
+    '.DDGGGGGGGGGGDD.',
+    'DD..DGGGGGGD..DD',
+    'D...DDGGGGDD...D',
+    '.....D....D.....',
+    '....DD....DD....',
   ],
 };
 
-export const FOOD = {
-  apple: {
-    pal: { r: '#d8282a', w: '#ff9a8a', g: '#3fa535', s: '#5a3a1e' },
-    rows: ['....s...', '...sgg..', '.rrrrrr.', 'rwrrrrrr', 'rwrrrrrr', 'rrrrrrrr', '.rrrrrr.', '..rrrr..'],
-  },
-  mushroom: {
-    pal: { r: '#c8302a', w: '#fff4e0', c: '#efe2c4', d: '#c9b896' },
-    rows: ['..rrrr..', '.rwrrwr.', 'rrrrrrrr', 'rwrrrrwr', '..cccc..', '...cd...', '...cd...', '..cccd..'],
-  },
-  berry: {
-    pal: { g: '#3fa535', d: '#2a1240', p: '#5b2a7a', h: '#b07ad8' },
-    rows: ['...gg...', '..ggg...', '..pdpd..', '.dphdpd.', '.pdpdpd.', '.dpdpdp.', '..pdpd..', '...dd...'],
-  },
+// a little frog in the corner, for spare lives
+export const FROG_MINI = {
+  pal: FROG.pal,
+  rows: [
+    'D......D',
+    '.DWGGWD.',
+    '.GEGGEG.',
+    'DGGGGGGD',
+    '.DGGGGD.',
+    'D.D..D.D',
+  ],
 };
 
-export const BEETLE = {
-  pal: { k: '#101010', g: '#2e9b5a', h: '#9cf0b8' },
-  rows: ['..k..k..', '...kk...', 'kgghgggk', '.gghkgg.', 'kgghkggk', '.gggkgg.', 'kgggkggk', '..gggg..'],
+// the lady frog you can escort home: pink, facing up
+export const LADY = {
+  pal: { G: '#ff6fc0', D: '#a8306f', L: '#ffb6e0', E: '#2a0c1c', W: '#ffffff' },
+  rows: [
+    '...D........D...',
+    '...DD......DD...',
+    '....DD....DD....',
+    '....DWWGGWWD....',
+    '...DGWEGGEWGD...',
+    '..DGGGGGGGGGGD..',
+    '.DGGLGGGGGGLGGD.',
+    '.DGGGGGGGGGGGGD.',
+    '..DGGGGGGGGGGD..',
+    '...GGGGGGGGGG...',
+    '..DGGGGGGGGGGD..',
+    '.DDGGGGGGGGGGDD.',
+    'DD..DGGGGGGD..DD',
+    'D...DDGGGGDD...D',
+    '.....D....D.....',
+    '....DD....DD....',
+  ],
+};
+
+// a fly, the home-bay bonus
+export const FLY = {
+  pal: { k: '#1a1a1a', w: '#bfe8ff', r: '#e03c3c' },
+  rows: [
+    'w......w',
+    'ww....ww',
+    '.wwkkww.',
+    '..krrk..',
+    '..kkkk..',
+    '...kk...',
+  ],
+};
+
+// the skull shown where a frog was lost to the clock or the hedge
+export const SKULL = {
+  pal: { w: '#f2f2f2', k: '#20201e', s: '#b8b8b2' },
+  rows: [
+    '..wwww..',
+    '.wwwwww.',
+    'wkwwwwkw',
+    'wkkwwkkw',
+    'wwwkkwww',
+    'wwwwwwww',
+    '.w.ww.w.',
+    '.w.ww.w.',
+  ],
 };

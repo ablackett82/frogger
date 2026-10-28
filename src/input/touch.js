@@ -1,17 +1,15 @@
-// Touch controls for iPad. Every finger is tracked on its own (Pointer Events).
-// Three ways to move, chosen under the cog:
-//   pad   - a fixed d-pad in the bottom corner; hold a direction to keep hopping.
-//           One half of the screen moves, the other half is CURL.
-//   stick - the same, but its centre is wherever the thumb lands.
+// Touch controls for iPad and phone. Every finger is tracked on its own
+// (Pointer Events). Three ways to move, chosen under the cog:
 //   swipe - swipe a direction for one hop, however long the swipe; a plain tap
 //           hops forward. Keep the finger down and turn to hop another way;
-//           lift it to hop the same way again. Works anywhere but the CURL
-//           button, so it suits a phone held in one hand.
+//           lift it to hop the same way again. Works anywhere on the screen.
+//   pad   - a fixed d-pad in the bottom corner; hold a direction to keep hopping.
+//   stick - the same, but its centre is wherever the thumb lands.
 //
 // Visibility: 'auto' shows the overlay on the first touch and hides it as soon
 // as a keyboard or gamepad is used; 'on' / 'off' force it.
 
-const STORE_KEY = 'hedgehog.touch';
+const STORE_KEY = 'frogger.touch';
 const DEFAULTS = { enabled: 'auto', layout: 'swipe', size: 1, opacity: 0.35, swap: false };
 const DEAD = 0.3;  // pad deadzone, fraction of ring radius
 const SWIPE = 22;  // pixels a finger travels to count as a swipe
@@ -19,8 +17,6 @@ const SWIPE = 22;  // pixels a finger travels to count as a swipe
 export const CHEATS = [
   ['lives', 'Unlimited lives', 'L'],
   ['invincible', "Can't be hurt", 'V'],
-  ['noHunger', 'Never hungry', 'H'],
-  ['noFox', 'No fox', 'U'],
 ];
 export const SPEEDS = [[1, 'Normal'], [0.75, 'Slow'], [0.5, 'Very slow']];
 
@@ -28,7 +24,7 @@ export class Touch {
   constructor(el) {
     this.el = el;
     this.settings = { ...DEFAULTS, ...load() };
-    this.pointers = new Map(); // pointerId -> { kind: 'move'|'swipe'|'curl', ... }
+    this.pointers = new Map(); // pointerId -> { kind: 'move'|'swipe', ... }
     this.startTapped = false;
     this.seenTouch = false;
     this.otherInputSeen = false;
@@ -36,7 +32,7 @@ export class Touch {
     this.knob = null;
     this.pulses = [];   // swipes waiting to be read, one per frame
     this.rest = false;  // a frame of nothing between pulses, so each reads as a fresh press
-    this.state = { left: false, right: false, up: false, down: false, curl: false };
+    this.state = { left: false, right: false, up: false, down: false };
     this.onPanelToggle = null; // main.js: pause while the panel is open
     this.onCheat = null;       // main.js owns the cheats and the speed
     this.onSpeed = null;
@@ -102,12 +98,7 @@ export class Touch {
   down(id, x, y) {
     const g = this.geom;
     const layout = this.settings.layout;
-    // swiping works anywhere but the CURL button; the pads split the screen in half
-    const curl = layout === 'swipe'
-      ? Math.hypot(x - g.curlX, y - g.curlY) <= g.curlR * 1.4
-      : (this.settings.swap ? x < g.mid : x > g.mid);
-    if (curl) this.pointers.set(id, { kind: 'curl' });
-    else if (layout === 'swipe') this.pointers.set(id, { kind: 'swipe', sx: x, sy: y, fired: false });
+    if (layout === 'swipe') this.pointers.set(id, { kind: 'swipe', sx: x, sy: y, fired: false });
     else {
       const fixed = layout === 'pad';
       const p = { kind: 'move', cx: fixed ? g.padX : x, cy: fixed ? g.padY : y, x, y };
@@ -150,11 +141,10 @@ export class Touch {
   /** Derive the held inputs from every live finger: one direction at a time, the stronger one. */
   recompute() {
     const s = this.state;
-    s.left = s.right = s.up = s.down = s.curl = false;
+    s.left = s.right = s.up = s.down = false;
     const R = this.geom.padR;
     let knob = null;
     for (const p of this.pointers.values()) {
-      if (p.kind === 'curl') { s.curl = true; continue; }
       if (p.kind !== 'move') continue;
       const dx = p.x - p.cx, dy = p.y - p.cy, d = Math.hypot(dx, dy);
       const k = Math.min(1, R * 0.7 / Math.max(d, 1e-6)); // knob stays inside the ring
@@ -175,7 +165,6 @@ export class Touch {
       <div class="tc-pad"><div class="tc-arrow tc-l">&#9664;</div><div class="tc-arrow tc-r">&#9654;</div>
         <div class="tc-arrow tc-u">&#9650;</div><div class="tc-arrow tc-d">&#9660;</div><div class="tc-knob"></div></div>
       <div class="tc-hint">SWIPE TO HOP<br>TAP = FORWARD</div>
-      <div class="tc-jump">CURL</div>
       <button class="tc-gear" type="button" aria-label="Settings and pause">&#9881;</button>
       <div class="tc-panel" hidden>
         <h2>Paused</h2>
@@ -185,7 +174,7 @@ export class Touch {
         <label>Move by <select name="layout"><option value="swipe">Swiping (tap = forward)</option><option value="pad">D-pad (fixed)</option><option value="stick">Stick (floats under thumb)</option></select></label>
         <label>Size <input name="size" type="range" min="0.6" max="1.6" step="0.1"></label>
         <label>Opacity <input name="opacity" type="range" min="0.1" max="0.9" step="0.05"></label>
-        <label><input name="swap" type="checkbox"> Curl button on the left</label>
+        <label><input name="swap" type="checkbox"> D-pad on the right</label>
         <h3>Cheats <small>(no high score)</small></h3>
         <label>Game speed <select class="tc-speed">${SPEEDS.map(([v, n]) => `<option value="${v}">${n}</option>`).join('')}</select></label>
         ${CHEATS.map(([k, n]) => `<label><input class="tc-cheat" data-cheat="${k}" type="checkbox"> ${n}</label>`).join('')}
@@ -193,7 +182,6 @@ export class Touch {
       </div>`;
     this.pad = el.querySelector('.tc-pad');
     this.hint = el.querySelector('.tc-hint');
-    this.curlEl = el.querySelector('.tc-jump');
     this.knobEl = el.querySelector('.tc-knob');
     this.arrows = { left: el.querySelector('.tc-l'), right: el.querySelector('.tc-r'), up: el.querySelector('.tc-u'), down: el.querySelector('.tc-d') };
     this.panel = el.querySelector('.tc-panel');
@@ -250,19 +238,14 @@ export class Touch {
     const inset = (n) => parseFloat(cs.getPropertyValue(n)) || 0;
     const sb = inset('--sat-b'), sl = inset('--sat-l'), sr = inset('--sat-r');
     const u = this.settings.size * Math.min(W, H) * 0.11;
-    const padR = 2 * u, curlR = 1.4 * u;
-    const swap = this.settings.swap;
-    const padX = swap ? W - sr - padR - u * 0.6 : sl + padR + u * 0.6;
+    const padR = 2 * u;
+    const right = this.settings.swap; // d-pad in the right corner instead of the left
+    const padX = right ? W - sr - padR - u * 0.6 : sl + padR + u * 0.6;
     const padY = H - sb - padR - u * 0.6;
-    const curlX = swap ? sl + curlR + u : W - sr - curlR - u;
-    const curlY = H - sb - curlR - u * 0.8;
-    this.geom = { mid: W / 2, padX, padY, padR, curlX, curlY, curlR };
-    const j = this.curlEl.style;
-    j.left = `${curlX - curlR}px`; j.top = `${curlY - curlR}px`; j.width = j.height = `${2 * curlR}px`;
+    this.geom = { padX, padY, padR };
     const h = this.hint.style;
     h.left = `${padX - padR}px`; h.top = `${padY - u * 0.6}px`; h.width = `${2 * padR}px`; h.fontSize = `${u * 0.3}px`;
     this.pad.style.fontSize = `${u * 0.5}px`;
-    this.curlEl.style.fontSize = `${u * 0.45}px`;
     this.paint();
   }
 
@@ -274,7 +257,6 @@ export class Touch {
     const p = this.pad.style;
     p.left = `${c[0] - g.padR}px`; p.top = `${c[1] - g.padR}px`; p.width = p.height = `${2 * g.padR}px`;
     for (const k in this.arrows) this.arrows[k].classList.toggle('on', s[k]);
-    this.curlEl.classList.toggle('on', s.curl);
     const k = this.knob || c, kr = g.padR * 0.3, ks = this.knobEl.style;
     ks.left = `${k[0] - c[0] + g.padR - kr}px`; ks.top = `${k[1] - c[1] + g.padR - kr}px`; ks.width = ks.height = `${2 * kr}px`;
   }

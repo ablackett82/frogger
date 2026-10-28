@@ -59,31 +59,34 @@ export class Sound {
 }
 
 const SOUNDS = {
-  hop: (s, t) => s.tone(t, { f0: 420, f1: 700, dur: 0.05, vol: 0.06 }),
-  ding: (s, t) => s.tone(t, { type: 'triangle', f0: 1320, dur: 0.3, vol: 0.18 }),
-  train: (s, t) => {
-    s.tone(t, { type: 'sawtooth', f0: 233, dur: 0.8, vol: 0.06 });
-    s.tone(t, { type: 'sawtooth', f0: 294, dur: 0.8, vol: 0.06 });
-    s.noise(t, { dur: 1.4, vol: 0.25, f0: 300, f1: 120 });
+  // the little two-note hop that Frogger is known for
+  hop: (s, t) => { s.tone(t, { type: 'square', f0: 330, f1: 660, dur: 0.05, vol: 0.09 }); s.tone(t + 0.05, { type: 'square', f0: 880, dur: 0.05, vol: 0.07 }); },
+  tick: (s, t) => s.tone(t, { f0: 1100, dur: 0.04, vol: 0.07 }),
+  ladypickup: (s, t) => s.tune(t, [76, 81], 0.07, 'triangle', 0.18),
+  home: (s, t, e) => {
+    s.tune(t, [72, 76, 79, 84], 0.06, 'triangle', 0.18);
+    if (e?.fly) s.tune(t + 0.26, [88, 91], 0.07, 'square', 0.14);
+    if (e?.lady) s.tune(t + 0.26, [79, 83, 86, 91], 0.07, 'triangle', 0.16);
   },
-  pickup: (s, t) => s.tune(t, [72, 76, 79], 0.06),
-  deliver: (s, t) => s.tune(t, [67, 71, 74, 79, 83], 0.07, 'triangle', 0.2),
-  munch: (s, t) => { s.noise(t, { dur: 0.06, vol: 0.4, type: 'highpass', f0: 2500 }); s.noise(t + 0.1, { dur: 0.06, vol: 0.4, type: 'highpass', f0: 2500 }); },
-  yelp: (s, t) => { s.tone(t, { type: 'triangle', f0: 900, f1: 1600, dur: 0.08, vol: 0.2 }); s.tone(t + 0.08, { type: 'triangle', f0: 1500, f1: 600, dur: 0.15, vol: 0.2 }); },
-  tick: (s, t) => s.tone(t, { f0: 1000, dur: 0.04, vol: 0.06 }),
   life: (s, t) => s.tune(t, [72, 76, 79, 84, 79, 84], 0.07),
-  level: (s, t, e) => s.tune(t, e?.night ? [57, 60, 64, 62, 60, 57, 0, 64] : [60, 64, 67, 72, 0, 67, 72, 76], 0.1, 'triangle', 0.18),
+  level: (s, t) => s.tune(t, [60, 64, 67, 72, 0, 72, 67, 64, 67], 0.1, 'triangle', 0.16),
   clear: (s, t) => {
-    s.tune(t, [67, 72, 76, 74, 72, 76, 79, 0, 81, 79, 76, 84], 0.11, 'square', 0.1);
-    s.tune(t, [48, 0, 55, 0, 52, 0, 55, 0, 53, 0, 55, 48], 0.11, 'triangle', 0.18);
+    // the "all five frogs home" tune
+    s.tune(t, [72, 74, 76, 77, 79, 0, 79, 81, 83, 84], 0.11, 'square', 0.1);
+    s.tune(t, [48, 0, 55, 0, 52, 0, 55, 0, 53, 55], 0.11, 'triangle', 0.17);
   },
   gameover: (s, t) => s.tune(t, [67, 66, 64, 62, 60, 55, 0, 48], 0.17, 'triangle', 0.2),
   die: (s, t, e) => {
     switch (e?.cause) {
-      case 'splash': s.noise(t, { dur: 0.6, vol: 0.5, type: 'bandpass', f0: 2400, f1: 300, q: 2 }); break;
-      case 'hunger': s.tone(t, { type: 'sine', f0: 600, f1: 140, dur: 1.0, vol: 0.25 }); break;
-      case 'fox': s.noise(t, { dur: 0.25, vol: 0.5, f0: 1800, f1: 400 }); s.tone(t, { type: 'sawtooth', f0: 220, f1: 90, dur: 0.3, vol: 0.12 }); break;
-      default: s.noise(t, { dur: 0.35, vol: 0.6, f0: 1400, f1: 150 }); s.tone(t, { type: 'sawtooth', f0: 320, f1: 60, dur: 0.35, vol: 0.12 });
+      case 'drown': s.noise(t, { dur: 0.5, vol: 0.5, type: 'bandpass', f0: 1800, f1: 250, q: 2 }); s.tone(t, { type: 'sine', f0: 500, f1: 120, dur: 0.4, vol: 0.14 }); break;
+      case 'time': s.tone(t, { type: 'sine', f0: 523, f1: 110, dur: 1.0, vol: 0.22 }); break;
+      case 'squish': s.noise(t, { dur: 0.35, vol: 0.6, f0: 1500, f1: 150 }); s.tone(t, { type: 'sawtooth', f0: 300, f1: 60, dur: 0.35, vol: 0.14 }); break;
+      case 'croc': // the chomp of the jaws
+        s.noise(t, { dur: 0.08, vol: 0.5, type: 'lowpass', f0: 900 });
+        s.noise(t + 0.09, { dur: 0.1, vol: 0.6, type: 'lowpass', f0: 500 });
+        s.tone(t, { type: 'sawtooth', f0: 180, f1: 60, dur: 0.3, vol: 0.16 });
+        break;
+      default: s.tone(t, { type: 'square', f0: 400, f1: 80, dur: 0.5, vol: 0.18 }); // hedge / occupied bay
     }
   },
 };

@@ -1,13 +1,18 @@
-// Draws a frame: the lanes, everything on them, night-time darkness, the score
-// line along the top and the lives / hunger / food bar along the bottom.
-import { COLS, TILE, FIELD_W, FIELD_H, VEHICLES, TRAIN_LEN, stoneState } from '../game/levels.js';
-import { hogPos, screenX, DIE_S, HOME_ROW } from '../game/game.js';
+// Draws a frame: the lanes and all that rides them, the frog, the score line
+// along the top and the spare frogs / level / time bar along the bottom.
+import {
+  COLS, TILE, FIELD_W, FIELD_H, VEHICLES, turtleState, crocJaw,
+  HOME_ROW, MEDIAN_ROW, START_ROW, HOME_COLS,
+} from '../game/levels.js';
+import { frogPos, screenX, DIE_S, START_X, TIME_MAX } from '../game/game.js';
 import { Rng } from '../game/rng.js';
-import { buildSprites, makeCanvas, vehicle } from './sprites.js';
+import { buildSprites, makeCanvas, vehicle, log, turtles, croc } from './sprites.js';
 import { drawText, textWidth } from './font.js';
 
-export const SCREEN_W = FIELD_W, SCREEN_H = FIELD_H + 24, FIELD_Y = 16;
-const NEST_COL = 6; // the log pile spans columns 6-8 of the garden
+export const FIELD_Y = 16, BOTTOM = 16;
+export const SCREEN_W = FIELD_W, SCREEN_H = FIELD_Y + FIELD_H + BOTTOM;
+
+const WATER = '#0d2b86';
 
 export class Screen {
   constructor(canvas) {
@@ -17,16 +22,15 @@ export class Screen {
     this.spr = buildSprites();
     this.bg = makeCanvas(FIELD_W, FIELD_H);
     this.bgFor = null;
-    this.dark = makeCanvas(FIELD_W, FIELD_H);
   }
 
   text(s, x, y, colour = '#fff', scale = 1) { drawText(this.ctx, s, x, y, colour, scale); }
   centre(s, y, colour = '#fff', scale = 1) { this.text(s, Math.round((SCREEN_W - textWidth(s, scale)) / 2), y, colour, scale); }
 
-  /** The playing field and all on it. hideHog for the title screen. */
-  drawWorld(g, { hideHog = false } = {}) {
+  /** The playing field and all on it. hideFrog for the title screen. */
+  drawWorld(g, { hideFrog = false } = {}) {
     const c = this.ctx;
-    if (this.bgFor !== g.lanes) { paintBackground(this.bg, g.lanes, g.level); this.bgFor = g.lanes; }
+    if (this.bgFor !== g.lanes) { paintBackground(this.bg, g.lanes); this.bgFor = g.lanes; }
     c.fillStyle = '#000';
     c.fillRect(0, 0, SCREEN_W, SCREEN_H);
     c.save();
@@ -34,179 +38,117 @@ export class Screen {
     c.beginPath(); c.rect(0, 0, FIELD_W, FIELD_H); c.clip();
     c.drawImage(this.bg, 0, 0);
 
+    // moving water, then the logs and turtles that float on it
+    g.lanes.forEach((lane, r) => { if (lane.kind === 'river') this.ripples(r * TILE, lane, g.t); });
     g.lanes.forEach((lane, r) => {
       const y = r * TILE;
-      if (lane.kind === 'brook') this.brook(lane, y, g.t);
-      if (lane.kind === 'rail') this.signal(lane, y, g.t);
+      if (lane.kind !== 'river') return;
+      for (const thing of lane.things) {
+        const x = Math.round(screenX(thing.x));
+        if (lane.turtle) this.turtleGroup(thing, x, y, g.t);
+        else if (thing.croc) c.drawImage(croc(thing.tiles, crocJaw(thing, g.t) === 'open', lane.dir), x, y + 2);
+        else c.drawImage(log(thing.w), x, y + 2);
+      }
     });
-    this.foods(g);
-    if (g.beetle && (g.beetle.life > 2 || Math.floor(g.t * 8) % 2)) c.drawImage(this.spr.beetle, g.beetle.col * TILE + 4, g.beetle.row * TILE + 4);
+
+    if (g.lady) c.drawImage(this.spr.lady.up, Math.round(screenX(g.lady.x)), g.lady.row * TILE);
+    this.homes(g);
+
+    // the vehicles
     g.lanes.forEach((lane, r) => {
-      const y = r * TILE;
-      if (lane.kind === 'road') {
-        const v = VEHICLES[lane.type], vy = y + ((TILE - v.h) >> 1);
-        for (const t of lane.things) c.drawImage(vehicle(t.type, t.colour, lane.dir), Math.round(screenX(t.x)), vy);
-      } else if (lane.kind === 'rail' && lane.train) c.drawImage(this.spr.train[lane.dir], Math.round(lane.train.x), y + 1);
+      if (lane.kind !== 'road') return;
+      const v = VEHICLES[lane.vehicle], vy = r * TILE + ((TILE - v.h) >> 1);
+      for (const t of lane.things) c.drawImage(vehicle(lane.vehicle, t.colour, lane.dir), Math.round(screenX(t.x)), vy);
     });
-    const f = g.fox;
-    if (f && !g.cheats.noFox) c.drawImage(this.spr.fox[f.pause > 0 ? 0 : Math.floor(f.walk / 6) % 2][f.dir > 0 ? 'right' : 'left'], Math.round(f.x), f.row * TILE + 2);
-    if (!hideHog) this.hog(g);
-    if (g.night) this.nightfall(g, hideHog);
+
+    if (!hideFrog) this.frog(g);
     c.restore();
   }
 
-  brook(lane, y, t) {
+  ripples(y, lane, t) {
     const c = this.ctx;
-    c.fillStyle = '#2a66a8';
-    c.fillRect(0, y, FIELD_W, TILE);
-    c.fillStyle = '#4f8fd0';
-    for (let i = 0; i < 14; i++) {
-      const x = ((i * 53 + lane.flow * t * 14) % 260 + 260) % 260 - 10;
-      c.fillRect(Math.round(x), y + 2 + ((i * 5) % 12), 4, 1);
-    }
-    for (let col = 0; col < COLS; col++) {
-      const s = lane.stones[col];
-      if (!s) continue;
-      const st = stoneState(s, t), x = col * TILE + 1;
-      const img = s.sink ? this.spr.mossy : this.spr.stone;
-      if (st === 'up') c.drawImage(img, x, y + 2);
-      else if (st === 'sinking') {
-        c.drawImage(img, x, y + 3 + (Math.floor(t * 10) % 2));
-        c.fillStyle = '#9fd0ff'; c.fillRect(x, y + 12, 14, 1);
-      } else { c.fillStyle = '#7fb8ef'; c.fillRect(x + 2, y + 7, 10, 1); c.fillRect(x + 4, y + 5, 6, 1); }
+    c.fillStyle = '#2a58c8';
+    for (let i = 0; i < 16; i++) {
+      const x = ((i * 47 + lane.dir * t * 18) % (FIELD_W + 20) + FIELD_W + 20) % (FIELD_W + 20) - 10;
+      c.fillRect(Math.round(x), y + 3 + ((i * 7) % 11), 3, 1);
     }
   }
 
-  signal(lane, y, t) {
-    const c = this.ctx, x = lane.dir > 0 ? 2 : FIELD_W - 5;
-    c.fillStyle = '#ddd'; c.fillRect(x + 1, y + 4, 1, 10);
-    c.fillStyle = '#222'; c.fillRect(x, y + 1, 3, 4);
-    c.fillStyle = lane.warn && Math.floor(t * 6) % 2 ? '#ff3030' : '#4a1010';
-    c.fillRect(x, y + 2, 3, 2);
+  turtleGroup(thing, x, y, t) {
+    const st = turtleState(thing, t);
+    if (st === 'under') {
+      // just ripples where the shells were
+      const c = this.ctx;
+      c.fillStyle = '#4f7fe0';
+      for (let i = 0; i < thing.tiles; i++) { const ox = x + i * TILE + 8; c.fillRect(ox - 4, y + 7, 8, 1); c.fillRect(ox - 2, y + 5, 4, 1); }
+      return;
+    }
+    this.ctx.drawImage(turtles(thing.tiles, st === 'diving'), x, y);
   }
 
-  foods(g) {
+  homes(g) {
     const c = this.ctx;
-    for (const f of g.foods) {
-      if (f.state === 'waiting') c.drawImage(this.spr.food[f.kind], f.col * TILE + 4, 5 + (Math.floor(g.t * 2 + f.col) % 2));
-      else if (f.state === 'home') c.drawImage(this.spr.food[f.kind], NEST_COL * TILE + 6 + f.slot * 13, HOME_ROW * TILE + 2);
+    for (const h of g.homes) {
+      const x = h.col * TILE;
+      if (h.filled) c.drawImage(h.lady ? this.spr.ladySit : this.spr.frogSit, x, HOME_ROW * TILE);
+      else if (h.croc) c.drawImage(this.spr.bayCroc, x, HOME_ROW * TILE);
+      else if (h.fly && Math.floor(g.t * 6) % 4) c.drawImage(this.spr.fly, x + 4, HOME_ROW * TILE + 5);
     }
   }
 
-  hog(g) {
-    const c = this.ctx, h = g.hog, s = this.spr;
-    if (h.dead) return this.deadHog(g);
-    const p = hogPos(h);
-    const x = Math.round(p.col * TILE), y = Math.round(p.row * TILE - (h.hopping ? Math.sin(Math.PI * h.t) * 3 : 0));
-    if (h.curled) c.drawImage(s.ball, x + 1, y + 1);
-    else c.drawImage(s.hog[h.face][h.step & 1], x, y);
-    if (h.carrying) c.drawImage(s.food[h.carrying.kind], x + 4, y + (h.curled ? 4 : 6));
+  frog(g) {
+    const c = this.ctx, f = g.frog, s = this.spr;
+    if (f.dead) return this.deadFrog(g);
+    const p = frogPos(f);
+    const arc = f.hopping ? Math.sin(Math.PI * f.t) * 5 : 0;
+    const x = Math.round(p.x), y = Math.round(p.row * TILE - arc);
+    c.drawImage(s.frog[f.face], x, y);
+    if (f.carrying === 'lady') c.drawImage(s.lady[f.face], x, y - 3);
   }
 
-  deadHog(g) {
-    const c = this.ctx, h = g.hog, s = this.spr;
-    const t = DIE_S - g.timer, x = Math.round(h.dead.at.col * TILE), y = Math.round(h.dead.at.row * TILE);
-    switch (h.dead.cause) {
-      case 'splash':
-        c.fillStyle = '#d8ecff';
-        for (let k = 0; k < 3; k++) {
-          const r = Math.floor((t * 12 + k * 4) % 12);
-          c.fillRect(x + 8 - r, y + 8, 2 * r, 1); c.fillRect(x + 8 - (r >> 1), y + 8 - (r >> 1), r, 1); c.fillRect(x + 8 - (r >> 1), y + 8 + (r >> 1), r, 1);
-        }
-        if (t < 0.25) c.drawImage(s.ball, x + 1, y + 1);
-        break;
-      case 'fox':
-        c.fillStyle = '#7d5230';
-        for (let i = 0; i < 14; i++) { const a = i * 2.4, d = 2 + t * 16; c.fillRect(Math.round(x + 8 + Math.cos(a) * d), Math.round(y + 8 + Math.sin(a) * d), 1, 2); }
-        if (t < 0.2) c.drawImage(s.ball, x + 1, y + 1);
-        break;
-      case 'hunger':
-        c.drawImage(s.ball, x + 1, y + 1);
-        drawText(c, 'Z', x + 10, Math.round(y - t * 6), '#fff');
-        if (t > 0.6) drawText(c, 'Z', x + 4, Math.round(y - (t - 0.6) * 6), '#fff');
-        break;
-      default: // squashed flat, seeing stars
-        c.drawImage(s.hog[h.face][0], x, y + 10, 16, 5);
-        c.fillStyle = '#ffe640';
-        for (let i = 0; i < 3; i++) { const a = t * 6 + i * 2.1; c.fillRect(Math.round(x + 7 + Math.cos(a) * 7), Math.round(y + 7 + Math.sin(a) * 3), 2, 2); }
-    }
-  }
-
-  // Night: everything dark but for headlamps, the hedgehog's own patch, the
-  // glow-worms by the food and the lantern at the nest.
-  nightfall(g, hideHog) {
-    const d = this.dark.getContext('2d');
-    d.globalCompositeOperation = 'source-over';
-    d.clearRect(0, 0, FIELD_W, FIELD_H);
-    d.fillStyle = 'rgba(4,8,28,0.9)';
-    d.fillRect(0, 0, FIELD_W, FIELD_H);
-    d.globalCompositeOperation = 'destination-out';
-    const glow = (x, y, r, a = 1) => {
-      const gr = d.createRadialGradient(x, y, 0, x, y, r);
-      gr.addColorStop(0, `rgba(0,0,0,${a})`); gr.addColorStop(1, 'rgba(0,0,0,0)');
-      d.fillStyle = gr; d.fillRect(x - r, y - r, 2 * r, 2 * r);
-    };
-    const lamps = [];
-    if (!hideHog) { const p = g.hog.dead ? g.hog.dead.at : hogPos(g.hog); glow(p.col * TILE + 8, p.row * TILE + 8, 30); }
-    glow((NEST_COL + 1.5) * TILE, HOME_ROW * TILE + 8, 40);
-    for (const f of g.foods) if (f.state === 'waiting') glow(f.col * TILE + 8, 8, 14, 0.8);
-    if (g.beetle) glow(g.beetle.col * TILE + 8, g.beetle.row * TILE + 8, 10, 0.6);
-    g.lanes.forEach((lane, r) => {
-      const y = r * TILE + 8;
-      if (lane.kind === 'road') {
-        const w = VEHICLES[lane.type].w;
-        for (const t of lane.things) {
-          const sx = Math.round(screenX(t.x)), front = lane.dir > 0 ? sx + w : sx;
-          glow(sx + w / 2, y, w / 2 + 6, 0.7);
-          glow(front + lane.dir * 16, y, 16);
-          lamps.push([front - (lane.dir > 0 ? 1 : 0), y]);
-        }
-      } else if (lane.kind === 'rail') {
-        if (lane.train) {
-          const tx = lane.train.x, front = lane.dir > 0 ? tx + TRAIN_LEN : tx;
-          for (let i = 0; i < TRAIN_LEN; i += 24) glow(tx + i + 12, y, 14, 0.6);
-          glow(front + lane.dir * 24, y, 26);
-        }
-        if (lane.warn) glow(lane.dir > 0 ? 3 : FIELD_W - 4, r * TILE + 3, 10);
+  deadFrog(g) {
+    const c = this.ctx, f = g.frog, s = this.spr;
+    const t = DIE_S - g.timer, x = Math.round(f.dead.at.x), y = Math.round(f.dead.at.row * TILE);
+    if (f.dead.cause === 'drown') {
+      c.fillStyle = '#cfe4ff';
+      for (let k = 0; k < 3; k++) {
+        const r = Math.floor((t * 14 + k * 4) % 14);
+        c.fillRect(x + 8 - r, y + 8, 2 * r, 1); c.fillRect(x + 8 - (r >> 1), y + 8 - (r >> 1), r, 1); c.fillRect(x + 8 - (r >> 1), y + 8 + (r >> 1), r, 1);
       }
-    });
-    if (g.fox && !g.cheats.noFox) { const f = g.fox; glow(f.x + (f.dir > 0 ? 20 : 4), f.row * TILE + 5, 5, 0.9); }
-    const c = this.ctx;
-    c.drawImage(this.dark, 0, 0);
-    c.fillStyle = '#fff6a0';
-    for (const [x, y] of lamps) { c.fillRect(x, y - 4, 1, 2); c.fillRect(x, y + 2, 1, 2); }
+      if (t < 0.2) c.drawImage(s.frog[f.face], x, y);
+      return;
+    }
+    if (f.dead.cause === 'squish' && t < 0.25) { c.drawImage(s.frog[f.face], x, y + 11, 16, 4); return; }
+    c.drawImage(s.skull, x + 4, Math.round(y + 4 - Math.min(t, 0.4) * 8));
   }
 
-  /** Score line, and the bottom bar: lives, hunger, food home. */
+  /** Score line along the top, spare frogs / level / time along the bottom. */
   hud(g, hi) {
     const c = this.ctx;
     c.fillStyle = '#000';
     c.fillRect(0, 0, SCREEN_W, FIELD_Y);
-    c.fillRect(0, FIELD_Y + FIELD_H, SCREEN_W, SCREEN_H - FIELD_Y - FIELD_H);
-    this.text('SCORE', 2, 4, '#ff6a3a'); this.text(String(g.score).padStart(6, '0'), 38, 4, '#fff');
-    this.text('HI', 88, 4, '#ff6a3a'); this.text(String(hi).padStart(6, '0'), 104, 4, '#fff');
-    const lv = `${g.night ? 'NIGHT ' : 'LEVEL '}${g.level}`;
-    this.text(lv, SCREEN_W - textWidth(lv) - 2, 4, g.night ? '#9fb8ff' : '#ffe640');
+    c.fillRect(0, FIELD_Y + FIELD_H, SCREEN_W, BOTTOM);
+
+    this.text('SCORE', 2, 4, '#e03c3c');
+    this.text(String(g.score).padStart(6, '0'), 2, 11, '#f2e23a');
+    const hs = String(hi).padStart(6, '0');
+    this.text('HI-SCORE', SCREEN_W - textWidth('HI-SCORE') - 2, 4, '#e03c3c');
+    this.text(hs, SCREEN_W - textWidth(hs) - 2, 11, '#f2e23a');
+    const lv = `LEVEL ${g.level}`;
+    this.centre(lv, 7, '#8affa0');
 
     const by = FIELD_Y + FIELD_H + 2;
-    const shown = Math.min(g.lives, 6);
-    for (let i = 0; i < shown; i++) c.drawImage(this.spr.mini, 2 + i * 10, by + 1);
-    if (g.lives > 6) this.text(`+${g.lives - 6}`, 64, by + 1, '#fff');
-    if (g.cheats.lives) this.text('+', 2 + shown * 10, by + 1, '#ffe640');
+    const shown = Math.min(g.lives - 1, 5); // lives beyond the one in play
+    for (let i = 0; i < Math.max(0, shown); i++) c.drawImage(this.spr.mini, 2 + i * 10, by + 3);
+    if (g.lives - 1 > 5) this.text(`+${g.lives - 1 - 5}`, 54, by + 3, '#fff');
+    if (g.cheats.lives) this.text('+', 2, by + 3, '#f2e23a');
 
-    // hunger: full when you leave home, empties as you go
-    const bx = 84, bw = 96, frac = g.hungerMax ? g.hunger / g.hungerMax : 0;
-    this.text('FOOD', 58, by + 1, '#ffe640');
-    c.fillStyle = '#333'; c.fillRect(bx, by + 2, bw, 5);
-    const col = g.cheats.noHunger ? '#5ad2ff' : frac > 0.4 ? '#3fc84a' : frac > 0.2 ? '#ffd23a' : Math.floor(g.t * 6) % 2 ? '#ff3030' : '#802020';
-    c.fillStyle = col; c.fillRect(bx, by + 2, Math.round(bw * frac), 5);
-
-    // the food brought home so far
-    g.foods.forEach((f, i) => {
-      const x = SCREEN_W - 12 - (g.foods.length - 1 - i) * 12;
-      if (f.state === 'home') c.drawImage(this.spr.food[f.kind], x, by);
-      else { c.fillStyle = '#444'; c.fillRect(x + 3, by + 3, 2, 2); }
-    });
+    // the time bar, draining right to left
+    const bw = 64, bx = SCREEN_W - bw - 2, frac = g.cheats.invincible ? 1 : Math.max(0, g.time / TIME_MAX);
+    this.text('TIME', bx - textWidth('TIME') - 3, by + 3, '#f2e23a');
+    c.fillStyle = '#222'; c.fillRect(bx, by + 2, bw, 7);
+    c.fillStyle = frac > 0.3 ? '#3fc84a' : Math.floor(g.t * 6) % 2 ? '#ff3030' : '#802020';
+    c.fillRect(bx + bw - Math.round(bw * frac), by + 2, Math.round(bw * frac), 7);
   }
 
   /** A boxed message over the middle of the field. */
@@ -216,7 +158,7 @@ export class Screen {
     const h = lines.reduce((a, [, , scale = 1]) => a + 10 * scale, 0) + 8;
     const x = Math.round((SCREEN_W - w) / 2), y = Math.round(FIELD_Y + (FIELD_H - h) / 2);
     c.fillStyle = '#000'; c.fillRect(x, y, w, h);
-    c.fillStyle = '#ffe640'; c.fillRect(x, y, w, 1); c.fillRect(x, y + h - 1, w, 1); c.fillRect(x, y, 1, h); c.fillRect(x + w - 1, y, 1, h);
+    c.fillStyle = '#f2e23a'; c.fillRect(x, y, w, 1); c.fillRect(x, y + h - 1, w, 1); c.fillRect(x, y, 1, h); c.fillRect(x + w - 1, y, 1, h);
     let ty = y + 6;
     for (const [s, colour, scale = 1] of lines) { this.centre(s, ty, colour, scale); ty += 10 * scale; }
   }
@@ -230,56 +172,53 @@ export class Screen {
 
 
 // The lanes that don't move, painted once per level.
-function paintBackground(canvas, lanes, level) {
+function paintBackground(canvas, lanes) {
   const c = canvas.getContext('2d');
-  const rng = new Rng(level * 7919 + 13);
+  const rng = new Rng(20250711);
   const px = (x, y, col) => { c.fillStyle = col; c.fillRect(x, y, 1, 1); };
   const speckle = (y, cols, n) => { for (let i = 0; i < n; i++) px(rng.int(FIELD_W), y + rng.int(TILE), rng.pick(cols)); };
   lanes.forEach((lane, r) => {
     const y = r * TILE;
-    const above = lanes[r - 1]?.kind, below = lanes[r + 1]?.kind;
     switch (lane.kind) {
-      case 'woods':
-        c.fillStyle = '#24461f'; c.fillRect(0, y, FIELD_W, TILE);
-        speckle(y, ['#5a3d24', '#7a5a2a', '#1a3416', '#8a6a2a'], 120);
-        for (let x = 0; x < FIELD_W; x += 16) { c.fillStyle = '#163012'; c.fillRect(x + rng.int(10), y, 6, 2); }
+      case 'home': {
+        c.fillStyle = '#0a1030'; c.fillRect(0, y, FIELD_W, TILE); // the dark bank behind the bays
+        // the hedge: bushy green everywhere but the five bays
+        for (let col = 0; col < COLS; col++) {
+          if (HOME_COLS.includes(col)) continue;
+          const bx = col * TILE;
+          c.fillStyle = '#15611d'; c.fillRect(bx, y, TILE, TILE);
+          c.fillStyle = '#1f7a28'; c.fillRect(bx, y, TILE, TILE - 3);
+        }
+        for (let i = 0; i < 140; i++) { const x = rng.int(FIELD_W); if (HOME_COLS.includes(Math.floor(x / TILE))) continue; px(x, y + rng.int(TILE - 2), rng.pick(['#2a9a34', '#114d17', '#36b345'])); }
+        // the lip of each bay
+        for (const col of HOME_COLS) { const bx = col * TILE; c.fillStyle = '#2a9a34'; c.fillRect(bx, y + TILE - 2, TILE, 2); c.fillRect(bx, y, 1, TILE); c.fillRect(bx + TILE - 1, y, 1, TILE); }
         break;
-      case 'garden':
-        for (let col = 0; col < COLS; col++) { c.fillStyle = col % 2 ? '#5aa140' : '#64ae49'; c.fillRect(col * TILE, y, TILE, TILE); }
-        for (let i = 0; i < 18; i++) {
-          const x = rng.int(FIELD_W);
-          if (x > NEST_COL * TILE - 4 && x < (NEST_COL + 3) * TILE + 4) continue;
-          px(x, y + 3 + rng.int(10), rng.pick(['#ffffff', '#ffe640', '#ff8ad0']));
-        }
-        // the nest: a pile of logs under a bush
-        c.fillStyle = '#2f6a2a'; c.fillRect(NEST_COL * TILE + 2, y, 44, 4);
-        for (let i = 0; i < 4; i++) {
-          const lx = NEST_COL * TILE + 2 + i * 11;
-          c.fillStyle = '#6a4424'; c.fillRect(lx, y + 9, 10, 6);
-          c.fillStyle = '#c8a070'; c.fillRect(lx + 7, y + 10, 3, 4);
-          c.fillStyle = '#8a5e34'; c.fillRect(lx + 8, y + 11, 1, 2);
-        }
+      }
+      case 'median':
+        c.fillStyle = '#4a2c7a'; c.fillRect(0, y, FIELD_W, TILE);
+        c.fillStyle = '#5c3a93'; c.fillRect(0, y + 2, FIELD_W, TILE - 4);
+        speckle(y, ['#6b49a6', '#3c2266'], 70);
+        c.fillStyle = '#c8c8c8'; c.fillRect(0, y, FIELD_W, 1); c.fillRect(0, y + TILE - 1, FIELD_W, 1);
         break;
       case 'grass':
-        c.fillStyle = '#4c9a3a'; c.fillRect(0, y, FIELD_W, TILE);
-        speckle(y, ['#3d8030', '#5aa845', '#3d8030'], 90);
-        for (let i = 0; i < 4; i++) px(rng.int(FIELD_W), y + 2 + rng.int(12), '#ffffff');
+        c.fillStyle = '#1f8a2a'; c.fillRect(0, y, FIELD_W, TILE);
+        c.fillStyle = '#25a033'; c.fillRect(0, y + 2, FIELD_W, TILE - 3);
+        speckle(y, ['#36b345', '#17711f'], 80);
+        c.fillStyle = '#c8c8c8'; c.fillRect(0, y, FIELD_W, 1);
         break;
-      case 'road':
-        c.fillStyle = '#3b3b44'; c.fillRect(0, y, FIELD_W, TILE);
-        speckle(y, ['#45454f', '#33333a'], 120);
-        if (above === 'road') { c.fillStyle = '#e8e8e8'; for (let x = 2; x < FIELD_W; x += 14) c.fillRect(x, y, 7, 1); }
-        else { c.fillStyle = '#b8b8b0'; c.fillRect(0, y, FIELD_W, 1); c.fillStyle = '#26262c'; c.fillRect(0, y + 1, FIELD_W, 1); }
-        if (below !== 'road') { c.fillStyle = '#b8b8b0'; c.fillRect(0, y + TILE - 1, FIELD_W, 1); }
+      case 'river':
+        c.fillStyle = WATER; c.fillRect(0, y, FIELD_W, TILE);
+        c.fillStyle = '#0a2270'; c.fillRect(0, y, FIELD_W, 1); c.fillRect(0, y + TILE - 1, FIELD_W, 1);
         break;
-      case 'rail':
-        c.fillStyle = '#6b625a'; c.fillRect(0, y, FIELD_W, TILE);
-        speckle(y, ['#7d746b', '#57504a', '#8a8178'], 160);
-        c.fillStyle = '#5a3d24'; for (let x = 1; x < FIELD_W; x += 8) c.fillRect(x, y + 2, 3, 12);
-        c.fillStyle = '#b9bec6'; c.fillRect(0, y + 4, FIELD_W, 1); c.fillRect(0, y + 11, FIELD_W, 1);
-        c.fillStyle = '#4a4e55'; c.fillRect(0, y + 5, FIELD_W, 1); c.fillRect(0, y + 12, FIELD_W, 1);
+      case 'road': {
+        c.fillStyle = '#101014'; c.fillRect(0, y, FIELD_W, TILE);
+        speckle(y, ['#17171c', '#0b0b0e'], 60);
+        const above = lanes[r - 1]?.kind, below = lanes[r + 1]?.kind;
+        if (above === 'road') { c.fillStyle = '#44444c'; for (let x = 2; x < FIELD_W; x += 14) c.fillRect(x, y, 7, 1); }
+        if (above === 'median') { c.fillStyle = '#c8c8c8'; c.fillRect(0, y, FIELD_W, 1); }
+        if (below === 'grass') { c.fillStyle = '#c8c8c8'; c.fillRect(0, y + TILE - 1, FIELD_W, 1); }
         break;
-      // brooks move, so they are drawn every frame
+      }
     }
   });
 }

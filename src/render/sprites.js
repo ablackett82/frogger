@@ -1,7 +1,7 @@
 // Turns the art into canvases, and draws the things that are easier as shapes
-// than as strings: the vehicles, the train, the fox, stones and the curled ball.
-import { HOG, HOG_MINI, FOOD, BEETLE } from './art.js';
-import { VEHICLES, TRAIN_LEN } from '../game/levels.js';
+// than as strings: the vehicles, the logs and the turtles.
+import { FROG, FROG_MINI, LADY, FLY, SKULL } from './art.js';
+import { VEHICLES, TILE } from '../game/levels.js';
 
 export function makeCanvas(w, h) { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; }
 
@@ -12,13 +12,6 @@ function fromRows(rows, pal) {
     const ch = rows[j][i];
     if (ch !== '.') { x.fillStyle = pal[ch]; x.fillRect(i, j, 1, 1); }
   }
-  return c;
-}
-
-/** Each pixel from fn(x, y), a colour or null. */
-function fromFn(w, h, fn) {
-  const c = makeCanvas(w, h), x = c.getContext('2d');
-  for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) { const col = fn(i, j); if (col) { x.fillStyle = col; x.fillRect(i, j, 1, 1); } }
   return c;
 }
 
@@ -44,87 +37,59 @@ export function shade(hex, f) {
   return `rgb(${ch(16)},${ch(8)},${ch(0)})`;
 }
 
-function hogFrame(feet) {
-  const rows = HOG.rows.map((r) => r.split(''));
-  for (const [x, y] of feet) if (rows[y][x] === '.') rows[y][x] = 'p';
-  return fromRows(rows.map((r) => r.join('')), HOG.pal);
+function fourWays(up) {
+  const turn = { up: 0, right: 1, down: 2, left: 3 };
+  const o = {};
+  for (const d in turn) o[d] = rotate(up, turn[d]);
+  return o;
 }
 
 export function buildSprites() {
-  const frames = HOG.feet.map(hogFrame);
-  const turn = { up: 0, right: 1, down: 2, left: 3 };
-  const hog = {};
-  for (const d in turn) hog[d] = frames.map((f) => rotate(f, turn[d]));
-  const { k, b, l } = HOG.pal;
-  const ball = fromFn(14, 14, (x, y) => {
-    const dx = x - 6.5, dy = y - 6.5;
-    if (dx * dx + dy * dy > 6.9 * 6.9) return null;
-    if ((x * 3 + y * 5) % 7 === 0) return l;
-    return (x + y) % 2 ? k : b;
-  });
-  const food = {};
-  for (const kind in FOOD) food[kind] = fromRows(FOOD[kind].rows, FOOD[kind].pal);
   return {
-    hog, ball, food,
-    mini: fromRows(HOG_MINI.rows, HOG_MINI.pal),
-    beetle: fromRows(BEETLE.rows, BEETLE.pal),
-    stone: stone('#8b9097', '#b4b9bf', '#5f646b'),
-    mossy: stone('#7f9474', '#a9bb98', '#55654c'),
-    fox: [0, 1].map((f) => { const r = fox(f); return { right: r, left: flipX(r) }; }),
-    train: (() => { const r = train(); return { 1: r, [-1]: flipX(r) }; })(),
+    frog: fourWays(fromRows(FROG.rows, FROG.pal)),
+    lady: fourWays(fromRows(LADY.rows, LADY.pal)),
+    frogSit: fromRows(FROG.rows, FROG.pal),
+    ladySit: fromRows(LADY.rows, LADY.pal),
+    mini: fromRows(FROG_MINI.rows, FROG_MINI.pal),
+    fly: fromRows(FLY.rows, FLY.pal),
+    skull: fromRows(SKULL.rows, SKULL.pal),
+    bayCroc: bayCrocHead(),
   };
-}
-
-function stone(mid, hi, lo) {
-  return fromFn(14, 12, (x, y) => {
-    const dx = (x - 6.5) / 6.8, dy = (y - 5.5) / 5.3;
-    const d = dx * dx + dy * dy;
-    if (d > 1) return null;
-    if (dx + dy < -0.6) return hi;
-    if (dx + dy > 0.7 || d > 0.8) return lo;
-    return mid;
-  });
 }
 
 // ---- vehicles, all drawn facing right ---------------------------------------
 
 function box(x, a, b, w, h, c) { x.fillStyle = c; x.fillRect(a, b, w, h); }
 
-const GLASS = '#9fd8ff', GLASS2 = '#6fa8cf', LAMP = '#fff6a0', TAIL = '#ff3030', TYRE = '#151515';
+const GLASS = '#bfe8ff', GLASS2 = '#6fa8cf', LAMP = '#fff6a0', TAIL = '#ff3030', TYRE = '#111';
 
 const DRAW = {
   car(x, c) {
-    for (const [a, b] of [[2, 0], [10, 0], [2, 10], [10, 10]]) box(x, a, b, 4, 2, TYRE);
-    box(x, 0, 1, 16, 10, shade(c, 0.6)); box(x, 1, 2, 14, 8, c);
-    box(x, 4, 3, 7, 6, shade(c, 1.25)); box(x, 11, 3, 2, 6, GLASS); box(x, 3, 3, 1, 6, GLASS2);
-    box(x, 15, 2, 1, 2, LAMP); box(x, 15, 8, 1, 2, LAMP); box(x, 0, 2, 1, 2, TAIL); box(x, 0, 8, 1, 2, TAIL);
+    for (const [a, b] of [[2, 0], [10, 0], [2, 9], [10, 9]]) box(x, a, b, 4, 2, TYRE);
+    box(x, 0, 1, 16, 9, shade(c, 0.6)); box(x, 1, 2, 14, 7, c);
+    box(x, 3, 3, 6, 5, GLASS); box(x, 10, 3, 3, 5, shade(c, 1.3));
+    box(x, 15, 2, 1, 2, LAMP); box(x, 15, 7, 1, 2, LAMP); box(x, 0, 2, 1, 2, TAIL); box(x, 0, 7, 1, 2, TAIL);
   },
-  van(x, c) {
-    for (const [a, b] of [[3, 0], [20, 0], [3, 10], [20, 10]]) box(x, a, b, 5, 2, TYRE);
-    box(x, 0, 1, 28, 10, shade(c, 0.6)); box(x, 1, 2, 26, 8, c);
-    box(x, 2, 3, 19, 6, shade(c, 1.15)); box(x, 2, 5, 19, 2, shade(c, 0.85));
-    box(x, 23, 2, 2, 8, GLASS); box(x, 27, 2, 1, 2, LAMP); box(x, 27, 8, 1, 2, LAMP);
-    box(x, 0, 2, 1, 2, TAIL); box(x, 0, 8, 1, 2, TAIL);
+  truck(x, c) {
+    for (const a of [4, 11, 30, 40]) { box(x, a, 0, 5, 2, TYRE); box(x, a, 10, 5, 2, TYRE); }
+    box(x, 0, 1, 34, 11, shade(c, 0.55)); box(x, 1, 2, 32, 9, c); box(x, 2, 4, 30, 2, shade(c, 1.2));
+    box(x, 34, 3, 2, 7, '#333');
+    box(x, 36, 1, 12, 11, '#c9c9c9'); box(x, 37, 2, 10, 9, '#efefef'); box(x, 43, 3, 4, 5, GLASS);
+    box(x, 47, 2, 1, 2, LAMP); box(x, 47, 9, 1, 2, LAMP); box(x, 0, 3, 1, 2, TAIL); box(x, 0, 8, 1, 2, TAIL);
   },
-  lorry(x, c) {
-    for (const a of [3, 9, 22, 36]) { box(x, a, 0, 5, 2, TYRE); box(x, a, 12, 5, 2, TYRE); }
-    box(x, 0, 1, 33, 12, '#9a9a9a'); box(x, 1, 2, 31, 10, '#e2e2e2'); box(x, 1, 6, 31, 2, c);
-    box(x, 33, 4, 2, 6, '#333');
-    box(x, 35, 1, 9, 12, shade(c, 0.6)); box(x, 36, 2, 7, 10, c); box(x, 40, 3, 2, 8, GLASS);
-    box(x, 43, 2, 1, 2, LAMP); box(x, 43, 10, 1, 2, LAMP); box(x, 0, 2, 1, 2, TAIL); box(x, 0, 10, 1, 2, TAIL);
+  racer(x, c) {
+    for (const [a, b] of [[3, 0], [12, 0], [3, 8], [12, 8]]) box(x, a, b, 4, 2, TYRE);
+    box(x, 0, 2, 18, 6, shade(c, 0.6)); box(x, 1, 3, 16, 4, c);
+    box(x, 2, 3, 7, 1, '#e03030'); box(x, 9, 3, 7, 1, '#2a52d0'); // livery stripes
+    box(x, 10, 3, 3, 4, GLASS); box(x, 16, 3, 2, 2, LAMP); box(x, 0, 3, 1, 2, TAIL);
   },
-  tractor(x, c) {
-    box(x, 2, 0, 9, 3, TYRE); box(x, 2, 11, 9, 3, TYRE);
-    for (let a = 3; a < 11; a += 2) { box(x, a, 0, 1, 1, '#444'); box(x, a, 13, 1, 1, '#444'); }
-    box(x, 19, 1, 4, 2, TYRE); box(x, 19, 11, 4, 2, TYRE);
-    box(x, 3, 3, 22, 8, shade(c, 0.6)); box(x, 4, 4, 20, 6, c);
-    box(x, 4, 4, 8, 6, '#d8d8d0'); box(x, 5, 5, 6, 4, GLASS2);
-    box(x, 16, 6, 2, 2, '#222'); box(x, 25, 5, 1, 1, LAMP); box(x, 25, 8, 1, 1, LAMP);
-  },
-  bike(x, c) {
-    box(x, 0, 3, 12, 2, '#333'); box(x, 0, 3, 3, 2, '#111'); box(x, 9, 3, 3, 2, '#111');
-    box(x, 3, 1, 5, 6, c); box(x, 4, 2, 3, 4, shade(c, 1.2));
-    box(x, 7, 2, 3, 4, '#2a2a2a'); box(x, 8, 0, 2, 1, c); box(x, 8, 7, 2, 1, c);
+  dozer(x, c) {
+    box(x, 3, 1, 8, 3, TYRE); box(x, 3, 9, 8, 3, TYRE); box(x, 4, 2, 6, 1, '#555'); box(x, 4, 10, 6, 1, '#555');
+    box(x, 18, 2, 4, 3, TYRE); box(x, 18, 8, 4, 3, TYRE);
+    box(x, 4, 3, 20, 7, shade(c, 0.6)); box(x, 5, 4, 18, 5, c);
+    box(x, 6, 4, 7, 5, '#d8d8c0'); box(x, 7, 5, 5, 3, GLASS2);
+    box(x, 24, 1, 4, 11, '#9a9a9a'); box(x, 23, 1, 1, 11, '#555'); // the blade
+    box(x, 25, 5, 1, 1, LAMP); box(x, 25, 7, 1, 1, LAMP);
   },
 };
 
@@ -136,39 +101,96 @@ export function vehicle(type, colour, dir) {
   if (!s) {
     const v = VEHICLES[type];
     const c = makeCanvas(v.w, v.h);
-    DRAW[type](c.getContext('2d'), colour);
+    DRAW[type](c.getContext('2d'), colour || '#d23c3c');
     s = dir > 0 ? c : flipX(c);
     vcache.set(key, s);
   }
   return s;
 }
 
-function train() {
-  const c = makeCanvas(TRAIN_LEN, 14), x = c.getContext('2d');
-  for (let i = 0; i < 4; i++) {
-    const a = i * 34;
-    box(x, a, 0, 32, 14, '#4a1018'); box(x, a + 1, 1, 30, 12, '#8a2232'); box(x, a + 1, 6, 30, 2, '#e8dcb8');
-    for (let w = a + 3; w < a + 30; w += 6) { box(x, w, 2, 4, 3, GLASS2); box(x, w, 9, 4, 3, GLASS2); }
-    box(x, a + 32, 5, 2, 4, '#222');
+// ---- river things -----------------------------------------------------------
+
+const BARK = '#7a4a24', WOOD = '#9a6334', DARK = '#5a3516', RING = '#c79464';
+
+const pcache = new Map();
+/** A log of the given pixel width, cached. */
+export function log(w) {
+  let s = pcache.get(w);
+  if (!s) {
+    const c = makeCanvas(w, 13), x = c.getContext('2d');
+    box(x, 0, 1, w, 11, DARK); box(x, 0, 2, w, 9, BARK); box(x, 0, 3, w, 2, WOOD);
+    box(x, 0, 9, w, 1, DARK);
+    for (let i = 6; i < w - 2; i += 9) box(x, i, 4, 1, 5, shade(BARK, 0.8)); // bark grooves
+    // sawn ends, with rings
+    for (const ex of [0, w - 4]) { box(x, ex, 1, 4, 11, '#6a4420'); box(x, ex, 2, 4, 9, RING); box(x, ex + 1, 4, 2, 5, '#9c6c3e'); box(x, ex + 1, 5, 2, 3, '#6a4420'); }
+    s = c;
+    pcache.set(w, s);
   }
-  const e = 4 * 34;
-  box(x, e, 0, 40, 14, '#16391f'); box(x, e + 1, 1, 38, 12, '#2e6b3a'); box(x, e + 4, 3, 24, 8, '#3d8a4c');
-  box(x, e + 28, 2, 5, 10, GLASS); box(x, e + 33, 1, 7, 12, '#f2c230'); box(x, e + 38, 3, 2, 2, LAMP); box(x, e + 38, 9, 2, 2, LAMP);
+  return s;
+}
+
+const CROC_BODY = '#2f7a3a', CROC_DK = '#1c5527', CROC_HI = '#4fa85f', CROC_EYE = '#f2e23a', CROC_K = '#0e2a16', MOUTH = '#8a1020', TOOTH = '#f4f4f4';
+
+const ccache = new Map();
+/** A crocodile `tiles` long, heading `dir`, jaws open or shut. Head leads the way. */
+export function croc(tiles, open, dir) {
+  const key = `${tiles}${open ? 1 : 0}${dir}`;
+  let s = ccache.get(key);
+  if (!s) {
+    const w = tiles * TILE, c = makeCanvas(w, 13), x = c.getContext('2d');
+    const hx = w - TILE; // the head segment
+    box(x, 0, 2, w, 9, CROC_DK); box(x, 0, 3, w, 7, CROC_BODY); box(x, 0, 4, hx, 1, CROC_HI);
+    for (let i = 4; i < hx - 1; i += 6) { box(x, i, 2, 2, 1, CROC_DK); box(x, i + 3, 10, 2, 1, CROC_DK); } // back ridges & feet
+    box(x, 0, 5, 3, 3, CROC_BODY); // blunt tail
+    // head
+    box(x, hx, 1, TILE, 10, CROC_DK); box(x, hx, 2, TILE, 8, CROC_BODY);
+    box(x, hx + 1, 1, 3, 3, CROC_BODY); box(x, hx + 2, 2, 2, 2, CROC_EYE); box(x, hx + 2, 2, 1, 1, CROC_K); // eye bump
+    if (open) {
+      box(x, hx + 6, 2, TILE - 6, 2, CROC_BODY);   // upper jaw
+      box(x, hx + 6, 4, TILE - 6, 3, MOUTH);        // gullet
+      box(x, hx + 6, 8, TILE - 6, 2, CROC_BODY);    // lower jaw
+      for (let tx = hx + 7; tx < w - 1; tx += 2) { box(x, tx, 4, 1, 1, TOOTH); box(x, tx, 7, 1, 1, TOOTH); }
+    } else {
+      box(x, hx + 6, 2, TILE - 6, 5, CROC_BODY); box(x, hx + 6, 6, TILE - 6, 1, CROC_K); // shut snout
+    }
+    s = dir > 0 ? c : flipX(c);
+    ccache.set(key, s);
+  }
+  return s;
+}
+
+/** A crocodile's head rising into a home bay, jaws agape. */
+function bayCrocHead() {
+  const c = makeCanvas(16, 16), x = c.getContext('2d');
+  box(x, 3, 0, 10, 7, CROC_DK); box(x, 3, 1, 10, 6, CROC_BODY);
+  box(x, 4, 1, 3, 3, CROC_BODY); box(x, 10, 1, 3, 3, CROC_BODY); // eye bumps
+  box(x, 5, 2, 2, 2, CROC_EYE); box(x, 10, 2, 2, 2, CROC_EYE); box(x, 5, 2, 1, 1, CROC_K); box(x, 11, 2, 1, 1, CROC_K);
+  box(x, 2, 7, 12, 2, CROC_BODY);  // upper jaw
+  box(x, 3, 9, 10, 3, MOUTH);       // open mouth
+  box(x, 2, 12, 12, 3, CROC_BODY);  // lower jaw
+  for (let tx = 3; tx < 13; tx += 2) { box(x, tx, 9, 1, 1, TOOTH); box(x, tx, 11, 1, 1, TOOTH); }
   return c;
 }
 
-function fox(frame) {
-  const c = makeCanvas(24, 12), x = c.getContext('2d');
-  const O = '#e06a1c', D = '#a3420f', W = '#f6efe4', K = '#1a1010';
-  // legs
-  const legs = frame ? [7, 11, 15, 19] : [8, 10, 16, 18];
-  for (const a of legs) box(x, a, 9, 1, 3, K);
-  // tail, with a white tip
-  box(x, 1, 3, 7, 4, O); box(x, 0, 4, 2, 3, W); box(x, 2, 2, 4, 1, D);
-  // body and belly
-  box(x, 6, 3, 13, 6, O); box(x, 6, 3, 13, 1, D); box(x, 9, 7, 8, 2, W);
-  // head, ears, snout
-  box(x, 17, 1, 5, 6, O); box(x, 17, 0, 1, 1, K); box(x, 20, 0, 1, 1, K);
-  box(x, 21, 4, 3, 2, W); box(x, 23, 4, 1, 1, K); box(x, 19, 2, 1, 1, K); box(x, 18, 5, 3, 1, W);
-  return c;
+const tcache = new Map();
+/** A row of `n` turtles, drawn up or part-dived, cached. */
+export function turtles(n, diving) {
+  const key = `${n}${diving ? 1 : 0}`;
+  let s = tcache.get(key);
+  if (!s) {
+    const c = makeCanvas(n * TILE, 13), x = c.getContext('2d');
+    const SH = '#2f9e4f', RIM = '#1c6b35', HI = '#79e08c', HEAD = '#3bb562', K = '#0e2a16';
+    for (let i = 0; i < n; i++) {
+      const ox = i * TILE + 1, drop = diving ? 3 : 0;
+      // head and flippers peek out to the left (the way turtles swim)
+      box(x, ox, 5 + drop, 3, 3, HEAD); box(x, ox, 6 + drop, 1, 1, K);
+      box(x, ox + 2, 2 + drop, 11, 9 - drop, RIM);
+      box(x, ox + 3, 3 + drop, 9, 7 - drop, SH);
+      if (!diving) { box(x, ox + 5, 4, 5, 2, HI); box(x, ox + 4, 6, 7, 2, shade(SH, 0.8)); }
+      box(x, ox + 12, 5 + drop, 2, 3, HEAD); // back flipper
+    }
+    s = c;
+    tcache.set(key, s);
+  }
+  return s;
 }

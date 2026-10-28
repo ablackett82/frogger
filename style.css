@@ -42,7 +42,7 @@ html, body {
   --sat-l: env(safe-area-inset-left, 0px);
 }
 #touch { pointer-events: auto; --tc-opacity: 0.35; font-family: system-ui, sans-serif; }
-#touch .tc-pad, #touch .tc-jump {
+#touch .tc-pad {
   position: absolute; border-radius: 50%; box-sizing: border-box;
   opacity: 0; transition: opacity 0.15s;
   pointer-events: none;
@@ -50,10 +50,9 @@ html, body {
   background: rgba(255,255,255,0.12);
   color: #fff;
 }
-#touch.tc-visible .tc-pad, #touch.tc-visible .tc-jump { opacity: var(--tc-opacity); }
+#touch.tc-visible .tc-pad { opacity: var(--tc-opacity); }
 #touch.tc-stick .tc-pad { transition: none; }
 #touch .tc-pad.tc-hidden { opacity: 0; }
-#touch .tc-jump { display: flex; align-items: center; justify-content: center; font-weight: 700; letter-spacing: 0.05em; }
 #touch .tc-arrow { position: absolute; width: 1.2em; height: 1.2em; line-height: 1.2em; text-align: center; opacity: 0.6; }
 #touch .tc-arrow.on { opacity: 1; color: #ff0; text-shadow: 0 0 0.3em #ff0; }
 #touch .tc-l { left: 6%; top: 50%; transform: translateY(-50%); }
@@ -61,7 +60,6 @@ html, body {
 #touch .tc-u { top: 6%; left: 50%; transform: translateX(-50%); }
 #touch .tc-d { bottom: 6%; left: 50%; transform: translateX(-50%); }
 #touch .tc-knob { position: absolute; border-radius: 50%; background: rgba(255,255,255,0.5); }
-#touch .tc-jump.on { background: rgba(255,255,0,0.45); border-color: #ff0; }
 #touch .tc-gear {
   position: absolute; top: calc(var(--sat-t) + 8px); right: calc(var(--sat-r) + 8px);
   width: 40px; height: 40px; border-radius: 50%; border: 0; font-size: 22px;

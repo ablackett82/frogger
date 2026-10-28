@@ -8,7 +8,7 @@ import { Touch, CHEATS, SPEEDS } from './input/touch.js';
 
 const STEP = 1 / 120;      // simulation step, seconds
 const MAX_FRAME_S = 0.1;   // never simulate more than this per animation frame
-const KEY = 'hedgehog.';
+const KEY = 'frogger.';
 
 function load(k, d) { try { const v = localStorage.getItem(KEY + k); return v === null ? d : JSON.parse(v); } catch { return d; } }
 function save(k, v) { try { localStorage.setItem(KEY + k, JSON.stringify(v)); } catch { /* storage blocked */ } }
@@ -23,7 +23,7 @@ function main() {
 
   let mode = 'title';
   let game = null;
-  let demo = newGame({ seed: 7, demo: true, level: 5 });
+  let demo = newGame({ seed: 7, demo: true, level: 4 });
   let highScore = Number(load('highscore', 0)) || 0;
   let cheats = { ...DEFAULT_CHEATS, ...load('cheats', {}) };
   let speed = load('speed', 1);
@@ -83,7 +83,7 @@ function main() {
     for (const k in input) input[k] = false;
     keyboard.read(input);
     gamepad.read(input);
-    if (input.left || input.right || input.up || input.down || input.curl) touch.notifyOtherInput();
+    if (input.left || input.right || input.up || input.down) touch.notifyOtherInput();
     touch.read(input);
     return input;
   }
@@ -108,22 +108,21 @@ function main() {
   }
 
   function drawTitle(now) {
-    screen.drawWorld(demo, { hideHog: true });
-    screen.dim(0.7);
+    screen.drawWorld(demo, { hideFrog: true });
+    screen.dim(0.72);
     const t = touch.active;
-    screen.centre('HEDGEHOG', 10, '#ffd84a', 2);
-    screen.centre('CROSSING', 28, '#ff8a3a', 2);
-    screen.centre('FETCH FOOD FROM THE WOOD AND', 50, '#fff');
-    screen.centre('BRING IT HOME BEFORE YOU GET HUNGRY', 60, '#fff');
-    screen.centre(`HIGH SCORE ${String(highScore).padStart(6, '0')}`, 76, '#5ad2ff');
-    screen.centre(t ? 'SWIPE TO HOP    CURL BUTTON CURLS UP' : 'ARROWS HOP    SPACE CURLS UP', 92, '#ccc');
-    screen.centre('CURLED UP, THE FOX CAN\'T BITE YOU', 102, '#ccc');
-    if (!t) screen.centre('P PAUSE  M MUTE  F FULLSCREEN  ESC QUIT', 112, '#999');
+    screen.centre('FROGGER', 24, '#8affa0', 2);
+    screen.centre('GET ALL FIVE FROGS SAFELY HOME', 50, '#fff');
+    screen.centre('DODGE THE TRAFFIC, RIDE THE RIVER', 60, '#fff');
+    screen.centre(`HI-SCORE ${String(highScore).padStart(6, '0')}`, 78, '#5ad2ff');
+    screen.centre(t ? 'SWIPE TO HOP  (TAP = FORWARD)' : 'ARROWS OR WASD TO HOP', 96, '#ccc');
+    screen.centre('WATER KILLS-USE LOGS AND TURTLES', 106, '#ccc');
+    if (!t) screen.centre('P PAUSE  M MUTE  F FULL  ESC QUIT', 116, '#999');
     const sp = SPEEDS.find(([v]) => v === speed)[1].toUpperCase();
     const lines = [[`GAME SPEED ${sp}`, speed < 1, 'C'], ...CHEATS.map(([k, n, key]) => [`${n.toUpperCase()} ${cheats[k] ? 'ON' : 'OFF'}`, cheats[k], key])];
-    lines.forEach(([s, on, key], i) => screen.centre(`${s} ${t ? '' : `(${key})`}`.trim(), 128 + i * 10, on ? '#ffe640' : '#777'));
-    screen.centre(t ? 'CHEATS UNDER THE COG' : 'K SKIPS A LEVEL IN A CHEAT GAME', 180, '#777');
-    if (Math.floor(now / 500) % 2) screen.centre(t ? 'TAP TO START' : 'PRESS SPACE TO START', 198, '#3fc84a');
+    lines.forEach(([s, on, key], i) => screen.centre(`${s} ${t ? '' : `(${key})`}`.trim(), 134 + i * 10, on ? '#f2e23a' : '#777'));
+    screen.centre(t ? 'CHEATS UNDER THE COG' : 'K SKIPS A LEVEL IN A CHEAT GAME', 182, '#777');
+    if (Math.floor(now / 500) % 2) screen.centre(t ? 'TAP TO START' : 'PRESS SPACE TO START', 202, '#f2e23a');
   }
 
   function frame(now) {
@@ -164,11 +163,11 @@ function main() {
   function drawGame() {
     screen.drawWorld(game);
     screen.hud(game, Math.max(highScore, game.cheated ? 0 : game.score));
-    if (mode === 'gameover') screen.banner([['GAME OVER', '#ff6a3a', 2], [`SCORE ${game.score}`, '#fff'], [game.cheated ? 'CHEAT GAME - NO HIGH SCORE' : game.score >= highScore && game.score > 0 ? 'NEW HIGH SCORE!' : '', '#ffe640']]);
+    if (mode === 'gameover') screen.banner([['GAME OVER', '#ff6a3a', 2], [`SCORE ${game.score}`, '#fff'], [game.cheated ? 'CHEAT GAME - NO HIGH SCORE' : game.score >= highScore && game.score > 0 ? 'NEW HIGH SCORE!' : '', '#f2e23a']]);
     else if (paused) screen.banner([['PAUSED', '#fff', 2], [touch.active ? '' : 'P TO CARRY ON  ESC TO QUIT', '#ccc']]);
-    else if (game.phase === 'intro') screen.banner([[`${game.night ? 'NIGHT' : 'LEVEL'} ${game.level}`, game.night ? '#9fb8ff' : '#ffe640', 2], [game.level === 1 ? 'FETCH 3 TREATS FROM THE WOOD' : game.night ? 'FOLLOW THE HEADLAMPS' : 'BUSIER ROADS!', '#fff']]);
-    else if (game.phase === 'clear') screen.banner([['SUPPER TIME!', '#3fc84a', 2], ['LEVEL BONUS 1000', '#fff']]);
-    if (game.cheated) screen.text('CHEAT', SCREEN_W - 32, SCREEN_H - 8, '#ffe640');
+    else if (game.phase === 'intro') screen.banner([[`LEVEL ${game.level}`, '#f2e23a', 2], [game.level === 1 ? 'GET YOUR FROGS HOME!' : 'FASTER NOW!', '#fff']]);
+    else if (game.phase === 'clear') screen.banner([['ALL FROGS HOME!', '#8affa0', 2], ['LEVEL BONUS 1000', '#fff']]);
+    if (game.cheated) screen.text('CHEAT', SCREEN_W - 32, SCREEN_H - 8, '#f2e23a');
   }
 
   // pause when the app is put away mid-game

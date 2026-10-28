@@ -22,4 +22,4 @@ http.createServer((req, res) => {
   }
   res.writeHead(200, { 'Content-Type': TYPES[path.extname(file)] || 'application/octet-stream', 'Cache-Control': 'no-store' });
   fs.createReadStream(file).pipe(res);
-}).listen(PORT, () => console.log(`hedgehog dev server: http://localhost:${PORT}/  (LAN: http://<this-machine-ip>:${PORT}/)`));
+}).listen(PORT, () => console.log(`frogger dev server: http://localhost:${PORT}/  (LAN: http://<this-machine-ip>:${PORT}/)`));

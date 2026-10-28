@@ -1,7 +1,7 @@
 {
-  "name": "hedgehog-crossing",
+  "name": "frogger",
   "version": "0.1.0",
-  "description": "A hedgehog crosses roads, a railway and a brook to fetch supper",
+  "description": "A browser remake of the classic arcade Frogger",
   "private": true,
   "type": "module",
   "scripts": {

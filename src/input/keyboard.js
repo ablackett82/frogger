@@ -1,8 +1,7 @@
-// Keyboard: arrows/WASD to hop, Space/Z/X/Shift to curl up.
+// Keyboard: arrows or WASD to hop. Space/Enter start a game (read in main.js).
 const MAP = {
   ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down',
   KeyA: 'left', KeyD: 'right', KeyW: 'up', KeyS: 'down',
-  Space: 'curl', KeyZ: 'curl', KeyX: 'curl', ShiftLeft: 'curl', ShiftRight: 'curl',
 };
 
 export class Keyboard {

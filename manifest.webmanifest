@@ -1,7 +1,7 @@
 {
-  "name": "Hedgehog Crossing",
-  "short_name": "Hedgehog",
-  "description": "Help a hedgehog across the roads, railway and brook to fetch supper.",
+  "name": "Frogger",
+  "short_name": "Frogger",
+  "description": "Guide the frog across the road and river to its five homes.",
   "start_url": "./",
   "scope": "./",
   "display": "fullscreen",

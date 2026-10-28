@@ -1,121 +1,115 @@
-// Each level is a stack of twelve lanes, top to bottom: the wood (row 0) where
-// the food lies, ten lanes to cross, and the garden (row 11) with the nest.
+// The board, which is the same every level in the way the arcade's was: a row
+// of five home bays at the top, five river lanes (logs and turtles) you cross
+// by riding what floats past, a safe median, five road lanes, and the grass you
+// start on. Each new level only makes the traffic and the water quicker and
+// sends more turtles diving. Rows, top to bottom: 0 homes, 1-5 river, 6 median,
+// 7-11 road, 12 start.
 
-export const COLS = 15, ROWS = 12, TILE = 16;
+export const COLS = 13, ROWS = 13, TILE = 16;
 export const FIELD_W = COLS * TILE, FIELD_H = ROWS * TILE;
-export const LOOP = FIELD_W + 96; // vehicles go round a loop longer than the screen...
-export const OFF = 48;            // ...which starts this far off the left edge
+export const LOOP = FIELD_W + 112; // things ride a loop longer than the screen...
+export const OFF = 56;             // ...that starts this far off the left edge
+
+export const HOME_ROW = 0, MEDIAN_ROW = 6, START_ROW = ROWS - 1;
+export const RIVER_TOP = 1, RIVER_BOT = 5, ROAD_TOP = 7, ROAD_BOT = 11;
+
+// the five home bays, by column; the frog must line up with one to get in
+export const HOME_COLS = [0, 3, 6, 9, 12];
+export const BAY_ACCEPT = 12; // how close the frog's centre must be to a bay
 
 export const VEHICLES = {
-  car:     { w: 16, h: 12, speed: 36, count: 3 },
-  van:     { w: 28, h: 12, speed: 28, count: 2 },
-  lorry:   { w: 44, h: 14, speed: 22, count: 2 },
-  tractor: { w: 26, h: 14, speed: 14, count: 2 },
-  bike:    { w: 12, h: 8,  speed: 50, count: 3 },
+  car:   { w: 16, h: 11, speed: 30 },
+  truck: { w: 48, h: 12, speed: 24 },
+  racer: { w: 18, h: 10, speed: 56 },
+  dozer: { w: 28, h: 13, speed: 18 },
 };
-const COLOURS = {
-  car: ['#d23c3c', '#3c6fd2', '#e8c43a', '#e8e8e8', '#9b4fd0', '#3caa6e', '#e07a2e'],
-  van: ['#e8e8e8', '#3c6fd2', '#d23c3c', '#4a4a52'],
-  lorry: ['#d23c3c', '#3c6fd2', '#2e8b57', '#e07a2e'],
-  tractor: ['#3a9a3a', '#c83a2a'],
-  bike: ['#ffd23a', '#ff6fa8', '#5ad2ff', '#ff8a2a'],
-};
-const MIN_GAP = 40; // always room for a hedgehog between two vehicles
+const CAR_COLOURS = ['#e8d83a', '#5ad2ff', '#ff7ad0', '#8affa0', '#ff8a3a'];
 
-export const TRAIN_LEN = 40 + 4 * 34; // engine and four coaches
-export const WARN_S = 1.8;            // the signal flashes this long before a train
-export const FOODS = ['apple', 'mushroom', 'berry'];
-export const FOOD_COUNT = 3;
+// one platform width, in tiles, per name
+const LOG_TILES = { short: 2, medium: 3, long: 5 };
 
-// rows 1..10, top to bottom; anything not grass/rail/brook is a road of that vehicle
-const LAYOUTS = [
-  ['grass', 'car', 'van', 'car', 'grass', 'tractor', 'car', 'bike', 'grass', 'car'],
-  ['grass', 'car', 'lorry', 'grass', 'rail', 'grass', 'van', 'car', 'bike', 'grass'],
-  ['grass', 'brook', 'brook', 'grass', 'car', 'van', 'grass', 'rail', 'car', 'tractor'],
-  ['rail', 'grass', 'lorry', 'car', 'van', 'grass', 'brook', 'grass', 'bike', 'car'],
-  ['grass', 'car', 'lorry', 'car', 'rail', 'brook', 'brook', 'grass', 'van', 'bike'],
-  ['brook', 'grass', 'bike', 'car', 'rail', 'grass', 'lorry', 'van', 'grass', 'car'],
+export const DIVE_PERIOD = 4.0; // a diving turtle's up/dive/under cycle, seconds
+export function turtleState(turtle, t) {
+  if (!turtle.dive) return 'up';
+  const p = ((t + turtle.phase) % DIVE_PERIOD + DIVE_PERIOD) % DIVE_PERIOD;
+  return p < 2.4 ? 'up' : p < 3.0 ? 'diving' : 'under';
+}
+
+export const JAW_PERIOD = 2.4; // a river crocodile's jaw open/close cycle, seconds
+export function crocJaw(croc, t) {
+  const p = ((t + croc.phase) % JAW_PERIOD + JAW_PERIOD) % JAW_PERIOD;
+  return p < 1.5 ? 'closed' : 'open';
+}
+export const CROC_LEVEL = 3;      // crocodiles start appearing in the river here
+export const BAY_CROC_LEVEL = 4;  // ...and lurking in the home bays here
+
+// The fixed board. river/road lanes name a direction and what rides them; the
+// turtle lanes say how big the groups are. +1 is rightward, -1 leftward.
+const BOARD = [
+  { row: 1, kind: 'river', platform: 'turtle', group: 3, dir: -1, base: 26 },
+  { row: 2, kind: 'river', platform: 'long',   dir: 1,  base: 22 },
+  { row: 3, kind: 'river', platform: 'turtle', group: 2, dir: -1, base: 30 },
+  { row: 4, kind: 'river', platform: 'medium', dir: 1,  base: 20 },
+  { row: 5, kind: 'river', platform: 'short',  dir: 1,  base: 34 },
+  { row: 7,  kind: 'road', vehicle: 'racer', dir: 1,  base: 56 },
+  { row: 8,  kind: 'road', vehicle: 'truck', dir: -1, base: 24 },
+  { row: 9,  kind: 'road', vehicle: 'car',   dir: 1,  base: 34 },
+  { row: 10, kind: 'road', vehicle: 'dozer', dir: -1, base: 18 },
+  { row: 11, kind: 'road', vehicle: 'car',   dir: 1,  base: 28 },
 ];
 
-export function layoutFor(n) {
-  return n <= LAYOUTS.length ? LAYOUTS[n - 1] : LAYOUTS[1 + ((n - 2) % (LAYOUTS.length - 1))];
-}
-
-/** Stones in a brook bob under now and then; this says where one is in its cycle. */
-export const SINK_PERIOD = 4.5;
-export function stoneState(stone, t) {
-  if (!stone) return 'none';
-  if (!stone.sink) return 'up';
-  const p = (t + stone.phase) % SINK_PERIOD;
-  return p < 2.8 ? 'up' : p < 3.5 ? 'sinking' : 'under';
-}
-
 export function buildLevel(n, rng) {
-  const diff = Math.min(n - 1, 12);
-  const lanes = [{ kind: 'woods' }];
-  let dir = rng.next() < 0.5 ? 1 : -1;
-  for (const spec of layoutFor(n)) {
-    const above = lanes[lanes.length - 1];
-    if (spec === 'grass') lanes.push({ kind: 'grass' });
-    else if (spec === 'rail') lanes.push(railLane(diff, rng));
-    else if (spec === 'brook') lanes.push(brookLane(diff, rng, above));
-    else { lanes.push(roadLane(spec, dir, diff, rng)); dir = -dir; }
-  }
-  lanes.push({ kind: 'garden' });
-
-  const grass = lanes.map((l, r) => (l.kind === 'grass' ? r : -1)).filter((r) => r > 0);
-  const fox = n >= 2 && grass.length ? {
-    row: rng.pick(grass), x: rng.range(0, FIELD_W - 24), dir: rng.next() < 0.5 ? 1 : -1,
-    speed: 26 + 2 * diff, chase: n >= 4, pause: 0, bump: 0, walk: 0,
-  } : null;
-
-  const foods = [];
-  while (foods.length < FOOD_COUNT) {
-    const col = 1 + rng.int(COLS - 2);
-    if (foods.every((f) => Math.abs(f.col - col) >= 2)) foods.push({ col, kind: rng.pick(FOODS) });
+  const diff = Math.min(n - 1, 10);
+  const mult = 1 + 0.12 * diff;
+  const lanes = [];
+  for (let r = 0; r < ROWS; r++) {
+    if (r === HOME_ROW) lanes.push({ kind: 'home' });
+    else if (r === MEDIAN_ROW) lanes.push({ kind: 'median' });
+    else if (r === START_ROW) lanes.push({ kind: 'grass' });
+    else {
+      const spec = BOARD.find((b) => b.row === r);
+      lanes.push(spec.kind === 'road' ? roadLane(spec, mult, rng) : riverLane(spec, n, diff, mult, rng));
+    }
   }
 
-  return { n, lanes, fox, foods, night: n % 3 === 0, hunger: Math.max(18, 32 - 1.5 * diff) };
+  // which river rows carry logs long enough for the lady frog to hitch a ride
+  const logRows = lanes.map((l, r) => (l.kind === 'river' && l.platform !== 'turtle' && l.tiles >= 3 ? r : -1)).filter((r) => r >= 0);
+  return { n, lanes, logRows, homes: HOME_COLS.map((col) => ({ col, filled: false, fly: false })) };
 }
 
-function roadLane(type, dir, diff, rng) {
-  const v = VEHICLES[type];
-  const count = Math.min(v.count + Math.floor(diff / 3), Math.floor(LOOP / (v.w + MIN_GAP)));
+function roadLane(spec, mult, rng) {
+  const v = VEHICLES[spec.vehicle];
+  const gap = v.w + 40 + rng.range(0, 24);
+  const count = Math.max(2, Math.floor(LOOP / gap));
   const spacing = LOOP / count;
-  const slack = spacing - v.w - MIN_GAP;
+  const slack = spacing - v.w - 36;
   const things = [];
-  for (let i = 0; i < count; i++) things.push({ x: i * spacing + rng.next() * slack, w: v.w, type, colour: rng.pick(COLOURS[type]) });
-  return { kind: 'road', type, dir, speed: v.speed * (1 + 0.08 * diff) * rng.range(0.85, 1.15), things };
+  for (let i = 0; i < count; i++) {
+    things.push({ x: i * spacing + (slack > 0 ? rng.next() * slack : 0), w: v.w, colour: spec.vehicle === 'car' ? rng.pick(CAR_COLOURS) : null });
+  }
+  return { kind: 'road', vehicle: spec.vehicle, dir: spec.dir, speed: spec.base * mult, things };
 }
 
-function railLane(diff, rng) {
-  return {
-    kind: 'rail', dir: rng.next() < 0.5 ? 1 : -1, speed: 280 + 12 * diff,
-    wait: rng.range(2, 5), gap: [Math.max(2.5, 5 - 0.25 * diff), Math.max(4.5, 9 - 0.35 * diff)],
-    train: null, warn: false, ding: 0,
-  };
-}
-
-// A brook has stepping stones; some (mossy) sink for a moment now and then.
-// Two brooks in a row always share a couple of steady stones, so there is a way across.
-function brookLane(diff, rng, above) {
-  const fixed = new Set();
-  if (above.kind === 'brook') {
-    const steady = [...above.fixed];
-    while (fixed.size < Math.min(2, steady.length)) fixed.add(rng.pick(steady));
+function riverLane(spec, n, diff, mult, rng) {
+  const turtle = spec.platform === 'turtle';
+  const tiles = turtle ? spec.group : LOG_TILES[spec.platform];
+  const w = tiles * TILE;
+  // leave a gap of one or two tiles between platforms so a way across comes round
+  const gap = TILE * (turtle ? 1.6 : 1.9);
+  const count = Math.max(2, Math.round(LOOP / (w + gap)));
+  const spacing = LOOP / count;
+  const diveChance = turtle ? Math.min(0.75, 0.3 + 0.06 * diff) : 0;
+  // some logs (never turtles) are crocodiles at higher levels, but never all of
+  // them in a lane, so there is always a safe log coming round too
+  const crocChance = !turtle && n >= CROC_LEVEL ? Math.min(0.5, 0.15 * (n - CROC_LEVEL + 1)) : 0;
+  const maxCrocs = Math.max(0, count - 1);
+  const things = [];
+  let crocs = 0;
+  for (let i = 0; i < count; i++) {
+    const t = { x: i * spacing, w, tiles };
+    if (turtle) { t.dive = rng.next() < diveChance; t.phase = (i / count) * DIVE_PERIOD + rng.range(0, 0.6); }
+    else if (crocs < maxCrocs && rng.next() < crocChance) { t.croc = true; t.phase = rng.range(0, JAW_PERIOD); crocs++; }
+    things.push(t);
   }
-  while (fixed.size < 2) fixed.add(rng.int(COLS));
-  const total = Math.max(6, 9 - Math.floor(diff / 3));
-  const stones = new Array(COLS).fill(null);
-  for (const c of fixed) stones[c] = { sink: false };
-  let placed = fixed.size, tries = 0;
-  const sinkChance = Math.min(0.65, 0.35 + 0.04 * diff);
-  while (placed < total && tries++ < 200) {
-    const c = rng.int(COLS);
-    if (stones[c]) continue;
-    stones[c] = rng.next() < sinkChance ? { sink: true, phase: rng.range(0, SINK_PERIOD) } : { sink: false };
-    if (!stones[c].sink) fixed.add(c);
-    placed++;
-  }
-  return { kind: 'brook', stones, fixed: [...fixed], flow: rng.next() < 0.5 ? 1 : -1 };
+  return { kind: 'river', platform: spec.platform, turtle, tiles, dir: spec.dir, speed: spec.base * mult, things };
 }

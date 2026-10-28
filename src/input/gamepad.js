@@ -1,4 +1,4 @@
-// Gamepad API: d-pad or left stick to hop, any face button to curl up.
+// Gamepad API: d-pad or left stick to hop. Any face button starts a game.
 export class Gamepad {
   constructor() { this.anyPressed = false; this.lastButtons = 0; }
   read(into) {
@@ -12,7 +12,6 @@ export class Gamepad {
       if (b[15]?.pressed || ax > 0.5) into.right = true;
       if (b[12]?.pressed || ay < -0.5) into.up = true;
       if (b[13]?.pressed || ay > 0.5) into.down = true;
-      if (b[0]?.pressed || b[1]?.pressed || b[2]?.pressed || b[3]?.pressed) into.curl = true;
       for (let i = 0; i < b.length; i++) if (b[i]?.pressed) buttons |= 1 << i;
     }
     this.anyPressed = buttons & ~this.lastButtons;
